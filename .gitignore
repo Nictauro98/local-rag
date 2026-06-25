@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+dist/
+.uv/
+.venv/
+*.egg-info/
+.claude/
+todo.txt

@@ -1,0 +1,25 @@
+# CI overrides: no GPU reservation, smaller LLM for CPU inference.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.ci.yml up -d
+services:
+
+  ollama:
+    # Clear GPU device reservation — CI runners have no NVIDIA runtime
+    deploy:
+      resources:
+        reservations:
+          devices: []
+
+  ollama-pull:
+    # Pull the 1B-parameter model instead of 3B for faster CPU inference in CI
+    entrypoint:
+      - sh
+      - -c
+      - "ollama pull nomic-embed-text && ollama pull llama3.2:1b"
+
+  api:
+    environment:
+      RAG_LLM_MODEL: llama3.2:1b
+
+  worker:
+    environment:
+      RAG_LLM_MODEL: llama3.2:1b
