@@ -65,9 +65,9 @@ def test_upload_query_cycle():
             break
         time.sleep(3)
 
-    assert status == "completed", (
-        f"Ingestion did not complete within {_POLL_TIMEOUT}s (status={status!r})"
-    )
+    assert (
+        status == "completed"
+    ), f"Ingestion did not complete within {_POLL_TIMEOUT}s (status={status!r})"
 
     # 3. Query the document
     resp = httpx.post(
@@ -83,10 +83,10 @@ def test_upload_query_cycle():
 
     # 4. Assert grounded answer and correct source attribution
     answer = payload["answer"].lower()
-    assert any(kw in answer for kw in ("zephyr", "4200", "march", "780")), (
-        f"Answer does not reference the known fact.\nQuestion about: Zephyr Bridge\nAnswer: {payload['answer']!r}"
-    )
-    assert _FILENAME in payload["sources"], (
-        f"Expected {_FILENAME!r} in sources, got {payload['sources']!r}"
-    )
+    assert any(
+        kw in answer for kw in ("zephyr", "4200", "march", "780")
+    ), f"Answer does not reference the known fact.\nQuestion about: Zephyr Bridge\nAnswer: {payload['answer']!r}"
+    assert (
+        _FILENAME in payload["sources"]
+    ), f"Expected {_FILENAME!r} in sources, got {payload['sources']!r}"
     assert payload["eval_result"] is None
