@@ -1,19 +1,17 @@
 """Unit tests for SQLiteHistory — save/list round-trip."""
 
-import os
-import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
-from src.evaluation.interfaces.evaluator import EvalResult
 from src.adapters.sqlite_history import SQLiteHistory
+from src.evaluation.interfaces.evaluator import EvalResult
 from src.interfaces.history import HistoryRecord
 
 
 def _record(eval_result=None, retries=0):
     return HistoryRecord(
-        timestamp=datetime(2026, 6, 25, 12, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 6, 25, 12, 0, 0, tzinfo=UTC),
         question="What is the capital of France?",
         answer="Paris.",
         sources=["doc.pdf"],
@@ -75,7 +73,7 @@ async def test_list_returns_most_recent_first(store):
     await store.save(_record())
     await store.save(
         HistoryRecord(
-            timestamp=datetime(2026, 6, 25, 13, 0, 0, tzinfo=timezone.utc),
+            timestamp=datetime(2026, 6, 25, 13, 0, 0, tzinfo=UTC),
             question="Second question?",
             answer="Second answer.",
             sources=[],
@@ -92,7 +90,7 @@ async def test_list_respects_limit(store):
     for i in range(5):
         await store.save(
             HistoryRecord(
-                timestamp=datetime(2026, 6, 25, 12, i, 0, tzinfo=timezone.utc),
+                timestamp=datetime(2026, 6, 25, 12, i, 0, tzinfo=UTC),
                 question=f"Question {i}",
                 answer=f"Answer {i}",
                 sources=[],

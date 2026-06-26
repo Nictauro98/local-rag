@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Query
 
@@ -23,7 +23,7 @@ async def query(request: QueryRequest):
         store = get_history_store()
         await store.save(
             HistoryRecord(
-                timestamp=datetime.now(tz=timezone.utc),
+                timestamp=datetime.now(tz=UTC),
                 question=request.question,
                 answer=state["answer"],
                 sources=sources,

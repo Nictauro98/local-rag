@@ -1,6 +1,6 @@
 """Unit tests for eval-related API routes."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -136,7 +136,7 @@ def test_query_flagged_result_surfaces_in_response(client):
 def test_history_returns_saved_items(client):
     record = HistoryRecord(
         id=1,
-        timestamp=datetime(2026, 6, 25, 12, 0, 0, tzinfo=timezone.utc),
+        timestamp=datetime(2026, 6, 25, 12, 0, 0, tzinfo=UTC),
         question="Capital of France?",
         answer="Paris.",
         sources=["doc.pdf"],
