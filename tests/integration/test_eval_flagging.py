@@ -1,7 +1,8 @@
 """Integration: real DeterministicEvaluator through CompositeEvaluator — misleading context → flagged."""
 
-import pytest
 from unittest.mock import AsyncMock
+
+import pytest
 
 from src.evaluation.composite_evaluator import CompositeEvaluator
 from src.evaluation.deterministic import DeterministicEvaluator

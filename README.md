@@ -2,14 +2,25 @@
 
 ![CI](https://github.com/Nictauro98/local-rag/actions/workflows/ci.yml/badge.svg)
 
-A fully local Retrieval-Augmented Generation system. Upload documents, ask questions, get grounded answers — no cloud calls, no API keys.
+A fully local Retrieval-Augmented Generation system. Upload documents, ask questions, get grounded answers — no cloud calls, no API keys. Includes a multi-tier evaluation layer that scores faithfulness and context relevance, flags low-quality answers, and retries with a rewritten query when needed.
 
 ```
 MinIO ──ObjectCreated──► FastAPI webhook ──► arq worker ──► Qdrant
                                                               │
-Streamlit ──POST /query──► LangGraph (retrieve → generate) ◄─┘
-                                         │
-                                      Ollama
+Streamlit ──POST /query──► LangGraph ◄────────────────────────┘
+                              │
+                    retrieve → generate
+                                │
+                    ┌── evaluate (optional) ──┐
+                    │  deterministic          │
+                    │  NLI (cross-encoder)    │
+                    │  LLM-as-judge           │
+                    └──────────┬──────────────┘
+                         flagged?
+                        /       \
+                      no        yes (retries < max)
+                      │              │
+                     END       rewrite_query → retrieve
 ```
 
 ## Stack
@@ -19,6 +30,8 @@ Streamlit ──POST /query──► LangGraph (retrieve → generate) ◄─┘
 | Storage | MinIO (S3-compatible) |
 | Vector DB | Qdrant |
 | Embeddings + LLM | Ollama (`nomic-embed-text` + `llama3.2`) |
+| Evaluation | `cross-encoder/nli-deberta-v3-small` + Ollama judge model |
+| History | SQLite via `aiosqlite` |
 | Job queue | arq + Redis |
 | API | FastAPI |
 | UI | Streamlit |
@@ -38,9 +51,9 @@ docker compose up -d
 
 On first run, an `ollama-pull` init container automatically pulls `nomic-embed-text` and `llama3.2` (~5 GB total). The API waits for this to complete before starting. Subsequent runs skip the download if models are already cached.
 
-**3. Open the UI:** http://localhost:8501
+**2. Open the UI:** http://localhost:8501
 
-**4. API docs:** http://localhost:8000/docs
+**3. API docs:** http://localhost:8000/docs
 
 Wait ~30 s on first boot for all health checks to pass. Check status with:
 
@@ -79,7 +92,7 @@ All settings are env-driven with `RAG_` prefix. Copy `.env.example` to `.env` to
 cp .env.example .env
 ```
 
-Key variables:
+### Core
 
 | Variable | Default | Description |
 |---|---|---|
@@ -88,6 +101,22 @@ Key variables:
 | `RAG_CHUNK_SIZE` | `1000` | Characters per chunk |
 | `RAG_CHUNK_OVERLAP` | `200` | Overlap between chunks |
 | `RAG_TOP_K` | `5` | Retrieved chunks per query |
+
+### Evaluation
+
+| Variable | Default | Description |
+|---|---|---|
+| `RAG_EVAL_DETERMINISTIC` | `true` | Enable cosine + token-overlap tier (free, instant) |
+| `RAG_EVAL_NLI` | `false` | Enable NLI cross-encoder tier (GPU recommended) |
+| `RAG_EVAL_JUDGE` | `false` | Enable LLM-as-judge tier (slow) |
+| `RAG_JUDGE_MODEL` | `phi3` | Ollama model used for judging (distinct from generation) |
+| `RAG_EVAL_NLI_MODEL` | `cross-encoder/nli-deberta-v3-small` | HuggingFace NLI model |
+| `RAG_EVAL_DET_CONTEXT_THRESHOLD` | `0.3` | Min context relevance (deterministic tier) |
+| `RAG_EVAL_DET_FAITH_THRESHOLD` | `0.2` | Min faithfulness (deterministic tier) |
+| `RAG_EVAL_NLI_FAITH_THRESHOLD` | `0.5` | Min faithfulness (NLI tier) |
+| `RAG_EVAL_JUDGE_FAITH_THRESHOLD` | `0.6` | Min faithfulness (judge tier) |
+| `RAG_EVAL_JUDGE_GROUND_THRESHOLD` | `0.6` | Min groundedness (judge tier) |
+| `RAG_HISTORY_DB_PATH` | `history.db` | SQLite file path for query history |
 
 ## Development (running without Docker)
 
@@ -119,6 +148,7 @@ Run tests:
 
 ```bash
 uv run pytest tests/unit
+uv run pytest -m integration tests/integration/
 uv run ruff check . && uv run black --check .
 ```
 
@@ -140,11 +170,47 @@ User uploads file
 
 ```
 User submits question
-  → POST /query
-  → LangGraph: retrieve node (embed query → Qdrant search)
-  → LangGraph: generate node (build grounded prompt → Ollama /api/generate)
-  → return {answer, sources}
+  → POST /query  {question, evaluate?, max_retries?}
+  → LangGraph: retrieve node  (embed query → Qdrant search)
+  → LangGraph: generate node  (build grounded prompt → Ollama /api/generate)
+  ↓  (if evaluate=false)
+  → return {answer, sources, eval_result: null}
+
+  ↓  (if evaluate=true)
+  → LangGraph: evaluate node  (CompositeEvaluator → EvalResult)
+      ├── Tier 1 – Deterministic: cosine similarity + token overlap  (always on)
+      ├── Tier 2 – NLI: cross-encoder entailment scores             (opt-in)
+      └── Tier 3 – LLM-as-judge: structured 1-5 faithfulness score  (opt-in)
+  ↓  flagged=false → return {answer, sources, eval_result}
+  ↓  flagged=true, retries < max_retries
+  → LangGraph: rewrite_query node  (LLM rephrases query given failure reason)
+  → back to retrieve  (bounded loop, default max_retries=2)
+  → return best/last attempt with populated eval_result
+  → persist to SQLite history store
 ```
+
+### Evaluation tiers
+
+Tiers run cheapest-first and can be independently toggled via env vars:
+
+| Tier | Cost | Signal |
+|---|---|---|
+| Deterministic | ~0 ms, no model | Cosine(query, context) + token overlap(answer ∩ context) |
+| NLI | ~50–200 ms, CPU/GPU | Cross-encoder entailment probability per answer sentence |
+| LLM-as-judge | ~5–30 s, Ollama | Structured 1–5 faithfulness + groundedness + reasoning |
+
+Any tier flagging marks the composite result as `flagged=true`. Malformed judge output is treated as a flag (fail-safe).
+
+### Query history
+
+When `evaluate=true`, the API persists every query to SQLite:
+
+```
+GET /query/history?limit=50
+→ [{id, timestamp, question, answer, sources, eval_result, retries}, ...]
+```
+
+The `HistoryStore` interface lets SQLite swap to Postgres later without touching API logic.
 
 ### Why this mirrors AWS
 
@@ -160,5 +226,6 @@ The local ingestion trigger (MinIO → webhook → arq) is a structural mirror o
 | Job queue | arq + Redis | Lambda is the queue (or SQS if fan-out needed) |
 | Vector DB | Qdrant (self-hosted) | Qdrant Cloud or OpenSearch |
 | LLM | Ollama | Amazon Bedrock |
+| History | SQLite | RDS Postgres (swap `SQLiteHistory` for a Postgres adapter behind `HistoryStore`) |
 
 Swap `RAG_STORAGE_BACKEND=aws` and `RAG_EMBEDDER_BACKEND=aws` in `.env` to switch adapters. Implement the stubs using boto3.

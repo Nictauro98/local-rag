@@ -12,7 +12,7 @@ _FAITHFULNESS_THRESHOLD = float(os.getenv("RAG_EVAL_DET_FAITH_THRESHOLD", "0.2")
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
+    dot = sum(x * y for x, y in zip(a, b, strict=False))
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(x * x for x in b))
     if norm_a == 0.0 or norm_b == 0.0:
