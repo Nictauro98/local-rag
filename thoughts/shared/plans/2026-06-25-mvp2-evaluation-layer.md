@@ -56,8 +56,8 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run python -c "from src.evaluation.interfaces.evaluator import Evaluator, EvalResult"` succeeds.
-- [ ] `EvalResult` rejects out-of-range scores (validator test).
+- [x] `uv run python -c "from src.evaluation.interfaces.evaluator import Evaluator, EvalResult"` succeeds.
+- [x] `EvalResult` rejects out-of-range scores (validator test).
 
 ---
 
@@ -73,7 +73,7 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_deterministic_eval.py` — high-overlap answer scores high; off-topic answer flagged. Embedder mocked with deterministic vectors.
+- [x] `uv run pytest tests/unit/test_deterministic_eval.py` — high-overlap answer scores high; off-topic answer flagged. Embedder mocked with deterministic vectors.
 
 ---
 
@@ -86,7 +86,7 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_nli_eval.py` — entailed answer scores high, contradicted answer scores low (uses a tiny fixed text pair; may be marked slow if it downloads the model — cache in CI).
+- [x] `uv run pytest tests/unit/test_nli_eval.py` — entailed answer scores high, contradicted answer scores low (uses a tiny fixed text pair; may be marked slow if it downloads the model — cache in CI).
 
 #### Manual Verification
 - [ ] Model loads on GPU when available; CPU fallback works.
@@ -102,7 +102,7 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_llm_judge.py` — mocked Ollama returning valid JSON parses correctly; malformed JSON ⇒ flagged.
+- [x] `uv run pytest tests/unit/test_llm_judge.py` — mocked Ollama returning valid JSON parses correctly; malformed JSON ⇒ flagged.
 
 ---
 
@@ -115,7 +115,7 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_composite_eval.py` — disabling a tier omits it from `tier_scores`; any tier flagging ⇒ overall flagged.
+- [x] `uv run pytest tests/unit/test_composite_eval.py` — disabling a tier omits it from `tier_scores`; any tier flagging ⇒ overall flagged.
 
 ---
 
@@ -137,7 +137,7 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_graph_eval.py` — with `evaluate=False`, graph ends at generate, `eval_result is None`. With `evaluate=True` + a stub evaluator that flags once then passes, the loop runs exactly one retry. With an always-flagging evaluator, it stops at `max_retries`.
+- [x] `uv run pytest tests/unit/test_graph_eval.py` — with `evaluate=False`, graph ends at generate, `eval_result is None`. With `evaluate=True` + a stub evaluator that flags once then passes, the loop runs exactly one retry. With an always-flagging evaluator, it stops at `max_retries`.
 
 ---
 
@@ -150,7 +150,7 @@ Fields per [spec line 193](../../local_rag_implementation_plan.md): `faithfulnes
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_history.py` — save then list round-trips an `EvalResult`.
+- [x] `uv run pytest tests/unit/test_history.py` — save then list round-trips an `EvalResult`.
 
 ---
 
@@ -167,8 +167,8 @@ Add `EvalResult` to `QueryResponse`; add `HistoryItem` / `HistoryResponse`.
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest tests/unit/test_api_eval.py` — `evaluate=true` returns populated `eval_result`; `/query/history` returns the saved item.
-- [ ] `curl -s localhost:8000/openapi.json` includes `/query/history`.
+- [x] `uv run pytest tests/unit/test_api_eval.py` — `evaluate=true` returns populated `eval_result`; `/query/history` returns the saved item.
+- [x] `curl -s localhost:8000/openapi.json` includes `/query/history`.
 
 ---
 
@@ -200,7 +200,7 @@ Force a low-quality first retrieval (e.g., tiny top_k / unrelated doc) → asser
 
 ### Success Criteria
 #### Automated Verification
-- [ ] `uv run pytest -m integration tests/integration/test_eval_flagging.py tests/integration/test_retry_loop.py` green.
+- [x] `uv run pytest -m integration tests/integration/test_eval_flagging.py tests/integration/test_retry_loop.py` green.
 
 **Implementation Note**: Pause for manual confirmation of the eval panel + flagging demo before declaring MVP 2 done.
 

@@ -20,6 +20,9 @@ dependencies = [
     "langgraph>=0.1",
     "python-multipart>=0.0.9",
     "httpx2>=2.5.0",
+    "sentence-transformers>=3.0",
+    "torch>=2.0",
+    "aiosqlite>=0.20",
 ]
 
 [dependency-groups]
